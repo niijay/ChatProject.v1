@@ -5,7 +5,7 @@ package client; /**
 import java.io.*;
 import java.net.*;
 
-public class MultiChatClient extends Thread {
+public class Client extends Thread {
 
     private static final int DEFAULT_PORT = 1337;
     private static final String DEFAULT_HOST = "localhost";
