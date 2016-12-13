@@ -1,7 +1,9 @@
 package server;
+
 import java.sql.*;
 import java.util.Properties;
 import java.io.*;
+
 import org.mindrot.jbcrypt.BCrypt;
 
 /**
@@ -9,15 +11,17 @@ import org.mindrot.jbcrypt.BCrypt;
  */
 
 public class DBManager {
-    public static String username;
-    String db_host, db_name, db_pass;
-    Connection conn;
 
+    String db_host, db_name, db_pass;
+    Connection connection;
 
     // Constructor
     public DBManager() {
         try {
             Class.forName("org.h2.Driver");
+
+            init(); // < DB BOOTS.
+
         } catch (Exception e) {
             System.out.print("Unable to load h2 Driver");
             System.exit(1);
@@ -29,11 +33,11 @@ public class DBManager {
      */
     public boolean userExists(String username, String password) {
         try {
-            Statement st = conn.createStatement();
+            PreparedStatement ps = null;
             String query;
 
             query = "SELECT * FROM Users WHERE UserName='" + username + "';";
-            ResultSet rs = st.executeQuery(query);
+            ResultSet rs = ps.executeQuery(query);
             if (rs.next()) {
                 String readPass = rs.getString("Password");
                 if (BCrypt.checkpw(password, readPass)) {
@@ -50,6 +54,33 @@ public class DBManager {
         }
     }
 
+
+    /***
+     * Register an account.
+     */
+
+    public boolean registerUser(String username, String password) {
+        try {
+            PreparedStatement ps = null;
+            String hashed_pw = BCrypt.hashpw(password, BCrypt.gensalt(10));
+            String query = "INSERT INTO USERS VALUES('" + username + "','" + hashed_pw + "');";
+            ResultSet rs = ps.executeQuery("SELECT * FROM Users WHERE UserName='" + username + "';");
+
+            if (rs.next()) {
+                return false; // If RS is next then we know the username is already registered...
+            } else {
+                ps.executeUpdate(query);
+                return true;
+            }
+        } catch (SQLException ee) {
+            ee.printStackTrace();
+        } catch (Exception ee) {
+            ee.printStackTrace();
+        }
+        return true;
+    }
+
+
     /**
      * Initiator, whenever connection needs to be established,s call this method.
      */
@@ -63,13 +94,11 @@ public class DBManager {
             FileInputStream in = new FileInputStream("properties.prop");
             prop.load(in);
 
-            host = prop.getProperty("host"); //DB_HOst
+            db_host = prop.getProperty("db_host"); //DB_HOst
             db_name = prop.getProperty("db_name"); //DB_Name
             db_pass = prop.getProperty("db_pass"); //DB_Pass
 
-            Connection con = DriverManager.getConnection("jdbc:h2:~/test", db_name, db_pass);
-            Statement st = con.createStatement();
-
+            Connection con = DriverManager.getConnection(db_host, db_name, db_pass);
         } catch (FileNotFoundException e) {
             e.printStackTrace(); // FIXME: 12/12/2016
         } catch (SQLException se) {
@@ -84,8 +113,6 @@ public class DBManager {
 
     /**
      * Use this to save code writing, call when SQL Exception is triggered.
-     *
-     * @param e
      */
     private void displaySQLErrors(SQLException e) {
         System.out.println("SQLException: " + e.getMessage() + "\n");
