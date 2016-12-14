@@ -1,0 +1,142 @@
+/**
+ * Created by GodfreyNii on 13/12/2016.
+ */
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.*;
+import javax.swing.*;
+import java.net.*;
+
+public class Client2GUI extends JFrame
+{
+    private JTextField userText;
+    private JTextArea chatWindow;
+    private ObjectOutputStream output;
+    private ObjectInputStream input;
+    private String msg = "";
+    private String serverIP;
+    private Socket connection;
+
+    //constructor
+    public Client2GUI(String host)// parse the IP address of the server
+    {
+        super("Client me");
+        serverIP = host;
+        userText = new JTextField();
+        userText.setEditable(false);// set to false so that user to type b4 connection starts
+        userText.addActionListener(new ActionListener()
+            {
+                @Override
+                public void actionPerformed(ActionEvent event)
+                {
+                    sendMessage(event.getActionCommand());// this takes what ever is in textArea and sends it
+                    userText.setText("");// Resets the textArea back to blank
+
+                }
+            });
+        add(userText, BorderLayout.NORTH);// add to the screen
+        chatWindow = new JTextArea();
+        add(new JScrollPane(chatWindow), BorderLayout.CENTER);//put into scrollPane so we can scroll up and down
+        setSize(300,150);// set size of screen/
+        setVisible(true);
+    }
+
+    // Code to connect to Server
+    public void startChat() throws IOException
+    {
+        try
+        {
+            connectToServer();//Gets the client to connect to the server on the specified port
+            setupStreams();
+            whileChatting();
+        }catch (EOFException oef)
+            {
+                showMessage("\n Client stopped connection");
+            }catch (IOException e)
+                {
+                    e.printStackTrace();
+                }finally
+                    {
+                        ableToType(false);
+                        output.close();
+                        input.close();
+                        connection.close();
+                    }
+    }
+
+    //method for "connectToServer" in startChat
+    private void connectToServer() throws IOException
+    {
+        showMessage("Attempting to connect ....\n");
+        //substitute with server port
+        connection = new Socket(InetAddress.getByName(serverIP), 9999);
+        showMessage("Connected to " + connection.getInetAddress().getHostName());
+    }
+
+    //method for "setupStreams" in startChat
+
+    private void setupStreams() throws IOException
+    {
+        output = new ObjectOutputStream(connection.getOutputStream());// outgoing stream from client to server
+        output.flush();
+        input = new ObjectInputStream(connection.getInputStream());// incoming streams from server to client
+        showMessage("\n You're ok to chat now! \n");
+    }
+
+    //method for "whileChatting" in startChat
+
+    private void whileChatting() throws IOException
+    {
+        ableToType(true);
+        do{
+            try
+            {
+                msg = (String) input.readObject();
+                showMessage("\n" + msg);
+            }catch (ClassNotFoundException e)
+                {
+                    showMessage("\n Error");
+                }
+        }while (!msg.equals("SERVER - Bye"));
+    }
+
+    //send message to server
+    private void sendMessage(String message)
+    {
+        try{
+            output.writeObject("CLIENT - " + message);
+            output.flush();
+            showMessage("\nCLIENT - " + message);
+        }catch(IOException ioException){
+            chatWindow.append("\n Oops! Something went wrong!");
+        }
+    }
+
+    //update chat window
+    private void showMessage(final String msg)
+    {
+        SwingUtilities.invokeLater(
+                new Runnable(){
+                    public void run(){
+                        chatWindow.append(msg);
+                    }
+                }
+        );
+    }
+
+    //allows user to type
+    private void ableToType(final boolean tof){
+        SwingUtilities.invokeLater(
+                new Runnable(){
+                    public void run(){
+                        userText.setEditable(tof);
+                    }
+                }
+        );
+    }
+
+
+
+}
+
